@@ -1,0 +1,37 @@
+# IDE / tooling
+.vs/
+.idea/
+.tools/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+[Bb]in/
+[Oo]bj/
+dist/
+publish/
+*.exe
+*.dll
+*.pdb
+*.nupkg
+
+# Models and archives belong in GitHub Releases, not git
+*.onnx
+*.onnx.data
+*.zip
+*.tar
+*.tar.bz2
+*.bz2
+*.part
+!models/README.md
+
+# Runtime junk next to the exe
+settings.json
+**/settings.json
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
