@@ -60,6 +60,10 @@ public static class SettingsStore
         settings.ShadowMode = ShadowModes.Off;
         settings.AnimationsEnabled = true;
         settings.ColorTheme = NormalizeTheme(settings.ColorTheme);
+        settings.CopyMode = string.Equals(settings.CopyMode, CopyModes.Entire, StringComparison.OrdinalIgnoreCase)
+            ? CopyModes.Entire
+            : CopyModes.NewOnly;
+        settings.WindowOpacity = Math.Clamp(settings.WindowOpacity, 0.40, 1.0);
         settings.PaperSizePreset = PaperSize.NormalizePreset(settings.PaperSizePreset);
 
         if (settings.PaperSizePreset is PaperSize.Presets.Small or PaperSize.Presets.Medium or PaperSize.Presets.Large)

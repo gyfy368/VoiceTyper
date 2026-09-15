@@ -14,7 +14,7 @@
 
 模型（约 228 MB 的 onnx）在 **Release 压缩包**里，不在 Git 仓库。clone 下来不能直接转写。
 
-1. 在 GitHub Releases 下载 `VoiceTyper-v1.0.0-win-x64.zip`
+1. 在 GitHub Releases 下载 `VoiceTyper-v1.1.0-win-x64.zip`
 2. 解压到任意文件夹
 3. 双击 `VoiceTyper.exe`
 4. 点贴边胶囊展开；点麦克开始说。停大约一秒会自动结束，也可以再点麦克停
@@ -44,6 +44,9 @@ models/
 | 失焦自动收成胶囊 | 关 |
 | 静音自动停录 | 开 |
 | 转完自动进剪贴板 | 开 |
+| 复制范围：只复制新加的 / 整段 | 只复制新加的 |
+| 复制后弹出「已复制」 | 开 |
+| 窗口不透明度 | 100%（可调） |
 | 转完后收成胶囊 | 关（方便改字） |
 | 配色：墨黑 / 暖纸 / 冷灰 / 林绿 | 墨黑 |
 | 胶囊贴左 / 右 | 右 |
@@ -61,7 +64,7 @@ dotnet test VoiceTyper.sln -c Release
 .\scripts\publish-release.ps1
 ```
 
-产物：`dist\VoiceTyper-v1.0.0-win-x64.zip`（exe + models + README）。
+产物：`dist\VoiceTyper-v1.1.0-win-x64.zip`（exe + models + README）。
 
 仓库里没有 onnx。第一次自己跑，程序会尝试下载模型；下失败就把 Release 里的 `models/` 整个拷到仓库根目录。不要 `git add` 那些 onnx。
 
@@ -83,7 +86,7 @@ Audio never leaves the machine. Windows 10/11 x64.
 
 The models (~228 MB onnx) are **in the zip**, not in git. Cloning the repo is not enough to transcribe.
 
-1. Download `VoiceTyper-v1.0.0-win-x64.zip` from GitHub Releases
+1. Download `VoiceTyper-v1.1.0-win-x64.zip` from GitHub Releases
 2. Unzip anywhere
 3. Double-click `VoiceTyper.exe`
 4. Click the capsule, then the mic. Silence for about a second stops recording; clicking the mic also stops
@@ -101,6 +104,9 @@ Right-click the capsule or tray icon for Settings / Show / Exit.
 | Collapse when unfocused | Off |
 | Auto-stop on silence | On |
 | Copy when done | On |
+| Copy: new segment only / entire transcript | New segment only |
+| Copy toast | On |
+| Window opacity | 100% (adjustable) |
 | Collapse when done | Off (easier to edit) |
 | Theme: ink / warm paper / cool gray / forest | Ink |
 | Dock left / right | Right |
@@ -118,7 +124,7 @@ dotnet test VoiceTyper.sln -c Release
 .\scripts\publish-release.ps1
 ```
 
-Output: `dist\VoiceTyper-v1.0.0-win-x64.zip`.
+Output: `dist\VoiceTyper-v1.1.0-win-x64.zip`.
 
 Onnx files are gitignored. On first run the app may download models; if that fails, copy `models/` from the Release zip. Do not force-add onnx into git.
 

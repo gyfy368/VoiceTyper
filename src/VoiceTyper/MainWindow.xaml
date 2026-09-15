@@ -13,39 +13,6 @@
         Topmost="True"
         FontFamily="Segoe UI Variable Display, Microsoft YaHei UI, Segoe UI">
   <Window.Resources>
-    <!-- Ambient recording pulse: low amplitude, long period, soft opacity (Wispr-style HUD, not alarm). -->
-    <Storyboard x:Key="PulseStory" RepeatBehavior="Forever">
-      <DoubleAnimation Storyboard.TargetName="PulseRing"
-                       Storyboard.TargetProperty="Opacity"
-                       From="0.28" To="0.06" Duration="0:0:1.85"
-                       AutoReverse="True">
-        <DoubleAnimation.EasingFunction>
-          <QuinticEase EasingMode="EaseInOut"/>
-        </DoubleAnimation.EasingFunction>
-      </DoubleAnimation>
-      <DoubleAnimation Storyboard.TargetName="PulseScale"
-                       Storyboard.TargetProperty="ScaleX"
-                       From="1.0" To="1.06" Duration="0:0:1.85"
-                       AutoReverse="True">
-        <DoubleAnimation.EasingFunction>
-          <QuinticEase EasingMode="EaseInOut"/>
-        </DoubleAnimation.EasingFunction>
-      </DoubleAnimation>
-      <DoubleAnimation Storyboard.TargetName="PulseScale"
-                       Storyboard.TargetProperty="ScaleY"
-                       From="1.0" To="1.06" Duration="0:0:1.85"
-                       AutoReverse="True">
-        <DoubleAnimation.EasingFunction>
-          <QuinticEase EasingMode="EaseInOut"/>
-        </DoubleAnimation.EasingFunction>
-      </DoubleAnimation>
-    </Storyboard>
-    <Storyboard x:Key="ScanStory" RepeatBehavior="Forever">
-      <DoubleAnimation Storyboard.TargetName="ScanRotate"
-                       Storyboard.TargetProperty="Angle"
-                       From="0" To="360" Duration="0:0:1.65"/>
-    </Storyboard>
-
     <ContextMenu x:Key="TrayContextMenu">
       <MenuItem Header="显示窗口" Click="OnTrayShow"/>
       <MenuItem Header="设置" Click="OnOpenSettings"/>
@@ -152,69 +119,67 @@
           <Border Grid.Row="1" Height="1" Background="{DynamicResource RuleBrush}" Margin="2,0,2,12" Opacity="0.85"/>
 
           <Grid x:Name="MicRow" Grid.Row="2">
-            <Ellipse x:Name="PulseRing"
-                     Width="86" Height="86"
-                     Stroke="{DynamicResource EmberBrush}"
-                     StrokeThickness="2"
-                     Opacity="0"
-                     HorizontalAlignment="Center"
-                     VerticalAlignment="Top"
-                     Margin="0,2,0,0"
-                     RenderTransformOrigin="0.5,0.5">
-              <Ellipse.RenderTransform>
-                <ScaleTransform x:Name="PulseScale" ScaleX="1" ScaleY="1"/>
-              </Ellipse.RenderTransform>
-            </Ellipse>
-            <Path x:Name="ScanArc"
-                  Data="M 20,4 A 16,16 0 0 1 36,20"
-                  Stroke="{DynamicResource BrassBrush}"
-                  StrokeThickness="2.4"
-                  StrokeStartLineCap="Round"
-                  StrokeEndLineCap="Round"
-                  Width="44" Height="44"
-                  Stretch="Uniform"
-                  HorizontalAlignment="Center"
-                  VerticalAlignment="Top"
-                  Margin="0,16,0,0"
-                  Opacity="0"
-                  RenderTransformOrigin="0.5,0.5"
-                  IsHitTestVisible="False">
-              <Path.RenderTransform>
-                <RotateTransform x:Name="ScanRotate" Angle="0"/>
-              </Path.RenderTransform>
-            </Path>
-
-            <Grid x:Name="SingleMicHost" VerticalAlignment="Top">
-              <Ellipse x:Name="MicHalo"
-                       Width="72" Height="72"
-                       Fill="{DynamicResource HaloBrush}"
-                       Stroke="{DynamicResource RuleBrush}"
-                       StrokeThickness="1"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Top"
-                       Margin="0,8,0,0"/>
-              <Button x:Name="MicButton"
-                      Width="72" Height="72"
+            <Grid x:Name="SingleMicHost" VerticalAlignment="Top" HorizontalAlignment="Center">
+              <Grid Width="86" Height="86" HorizontalAlignment="Center" VerticalAlignment="Top">
+                <Ellipse x:Name="PulseRing"
+                         Width="86" Height="86"
+                         Stroke="{DynamicResource EmberBrush}"
+                         StrokeThickness="2"
+                         Opacity="0"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         RenderTransformOrigin="0.5,0.5"
+                         IsHitTestVisible="False">
+                  <Ellipse.RenderTransform>
+                    <ScaleTransform x:Name="PulseScale" ScaleX="1" ScaleY="1"/>
+                  </Ellipse.RenderTransform>
+                </Ellipse>
+                <Path x:Name="ScanArc"
+                      Data="M 20,4 A 16,16 0 0 1 36,20"
+                      Stroke="{DynamicResource BrassBrush}"
+                      StrokeThickness="2.4"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      Width="44" Height="44"
+                      Stretch="Uniform"
                       HorizontalAlignment="Center"
-                      VerticalAlignment="Top"
-                      Margin="0,8,0,0"
-                      Click="OnMicClick"
-                      Cursor="Hand"
-                      ToolTip="点麦克风开始，停顿后自动结束">
-                <Button.Template>
-                  <ControlTemplate TargetType="Button">
-                    <Grid Background="Transparent">
-                      <Path x:Name="MicGlyph"
-                            Data="{StaticResource MicGeometry}"
-                            Fill="{DynamicResource OnHaloBrush}"
-                            Stretch="Uniform"
-                            Width="22" Height="22"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"/>
-                    </Grid>
-                  </ControlTemplate>
-                </Button.Template>
-              </Button>
+                      VerticalAlignment="Center"
+                      Opacity="0"
+                      RenderTransformOrigin="0.5,0.5"
+                      IsHitTestVisible="False">
+                  <Path.RenderTransform>
+                    <RotateTransform x:Name="ScanRotate" Angle="0"/>
+                  </Path.RenderTransform>
+                </Path>
+                <Ellipse x:Name="MicHalo"
+                         Width="72" Height="72"
+                         Fill="{DynamicResource HaloBrush}"
+                         Stroke="{DynamicResource RuleBrush}"
+                         StrokeThickness="1"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"/>
+                <Button x:Name="MicButton"
+                        Width="72" Height="72"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Click="OnMicClick"
+                        Cursor="Hand"
+                        ToolTip="点麦克风开始，停顿后自动结束">
+                  <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                      <Grid Background="Transparent">
+                        <Path x:Name="MicGlyph"
+                              Data="{StaticResource MicGeometry}"
+                              Fill="{DynamicResource OnHaloBrush}"
+                              Stretch="Uniform"
+                              Width="22" Height="22"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                      </Grid>
+                    </ControlTemplate>
+                  </Button.Template>
+                </Button>
+              </Grid>
             </Grid>
 
             <Grid x:Name="DualMicHost"
@@ -236,33 +201,65 @@
                   <RowDefinition Height="72"/>
                   <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Ellipse x:Name="NewSentenceHalo"
-                         Width="56" Height="56"
-                         Fill="{DynamicResource HaloBrush}"
-                         Stroke="{DynamicResource RuleBrush}"
-                         StrokeThickness="1"
-                         HorizontalAlignment="Center"
-                         VerticalAlignment="Center"/>
-                <Button x:Name="NewSentenceButton"
-                        Width="56" Height="56"
+                <Grid Width="70" Height="70" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Ellipse x:Name="PulseRingNew"
+                           Width="70" Height="70"
+                           Stroke="{DynamicResource EmberBrush}"
+                           StrokeThickness="2"
+                           Opacity="0"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           RenderTransformOrigin="0.5,0.5"
+                           IsHitTestVisible="False">
+                    <Ellipse.RenderTransform>
+                      <ScaleTransform x:Name="PulseScaleNew" ScaleX="1" ScaleY="1"/>
+                    </Ellipse.RenderTransform>
+                  </Ellipse>
+                  <Path x:Name="ScanArcNew"
+                        Data="M 20,4 A 16,16 0 0 1 36,20"
+                        Stroke="{DynamicResource BrassBrush}"
+                        StrokeThickness="2.2"
+                        StrokeStartLineCap="Round"
+                        StrokeEndLineCap="Round"
+                        Width="36" Height="36"
+                        Stretch="Uniform"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Click="OnNewSentenceClick"
-                        Cursor="Hand"
-                        ToolTip="清掉现在的字，重新说一句">
-                  <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                      <Grid Background="Transparent">
-                        <Path Data="{StaticResource MicGeometry}"
-                              Fill="{DynamicResource OnHaloBrush}"
-                              Stretch="Uniform"
-                              Width="18" Height="18"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"/>
-                      </Grid>
-                    </ControlTemplate>
-                  </Button.Template>
-                </Button>
+                        Opacity="0"
+                        RenderTransformOrigin="0.5,0.5"
+                        IsHitTestVisible="False">
+                    <Path.RenderTransform>
+                      <RotateTransform x:Name="ScanRotateNew" Angle="0"/>
+                    </Path.RenderTransform>
+                  </Path>
+                  <Ellipse x:Name="NewSentenceHalo"
+                           Width="56" Height="56"
+                           Fill="{DynamicResource HaloBrush}"
+                           Stroke="{DynamicResource RuleBrush}"
+                           StrokeThickness="1"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+                  <Button x:Name="NewSentenceButton"
+                          Width="56" Height="56"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Click="OnNewSentenceClick"
+                          Cursor="Hand"
+                          ToolTip="清掉现在的字，重新说一句">
+                    <Button.Template>
+                      <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                          <Path Data="{StaticResource MicGeometry}"
+                                Fill="{DynamicResource OnHaloBrush}"
+                                Stretch="Uniform"
+                                Width="18" Height="18"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+                        </Grid>
+                      </ControlTemplate>
+                    </Button.Template>
+                  </Button>
+                </Grid>
                 <TextBlock Grid.Row="1"
                            Text="新开一句"
                            Foreground="{DynamicResource IvoryBrush}"
@@ -281,33 +278,65 @@
                   <RowDefinition Height="72"/>
                   <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Ellipse x:Name="ContinueHalo"
-                         Width="56" Height="56"
-                         Fill="{DynamicResource HaloBrush}"
-                         Stroke="{DynamicResource RuleBrush}"
-                         StrokeThickness="1"
-                         HorizontalAlignment="Center"
-                         VerticalAlignment="Center"/>
-                <Button x:Name="ContinueButton"
-                        Width="56" Height="56"
+                <Grid Width="70" Height="70" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Ellipse x:Name="PulseRingContinue"
+                           Width="70" Height="70"
+                           Stroke="{DynamicResource EmberBrush}"
+                           StrokeThickness="2"
+                           Opacity="0"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           RenderTransformOrigin="0.5,0.5"
+                           IsHitTestVisible="False">
+                    <Ellipse.RenderTransform>
+                      <ScaleTransform x:Name="PulseScaleContinue" ScaleX="1" ScaleY="1"/>
+                    </Ellipse.RenderTransform>
+                  </Ellipse>
+                  <Path x:Name="ScanArcContinue"
+                        Data="M 20,4 A 16,16 0 0 1 36,20"
+                        Stroke="{DynamicResource BrassBrush}"
+                        StrokeThickness="2.2"
+                        StrokeStartLineCap="Round"
+                        StrokeEndLineCap="Round"
+                        Width="36" Height="36"
+                        Stretch="Uniform"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Click="OnContinueClick"
-                        Cursor="Hand"
-                        ToolTip="接着往下说，字会接在后面">
-                  <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                      <Grid Background="Transparent">
-                        <Path Data="{StaticResource MicGeometry}"
-                              Fill="{DynamicResource OnHaloBrush}"
-                              Stretch="Uniform"
-                              Width="18" Height="18"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"/>
-                      </Grid>
-                    </ControlTemplate>
-                  </Button.Template>
-                </Button>
+                        Opacity="0"
+                        RenderTransformOrigin="0.5,0.5"
+                        IsHitTestVisible="False">
+                    <Path.RenderTransform>
+                      <RotateTransform x:Name="ScanRotateContinue" Angle="0"/>
+                    </Path.RenderTransform>
+                  </Path>
+                  <Ellipse x:Name="ContinueHalo"
+                           Width="56" Height="56"
+                           Fill="{DynamicResource HaloBrush}"
+                           Stroke="{DynamicResource RuleBrush}"
+                           StrokeThickness="1"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+                  <Button x:Name="ContinueButton"
+                          Width="56" Height="56"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Click="OnContinueClick"
+                          Cursor="Hand"
+                          ToolTip="接着说，字会出现在光标所在的位置">
+                    <Button.Template>
+                      <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                          <Path Data="{StaticResource MicGeometry}"
+                                Fill="{DynamicResource OnHaloBrush}"
+                                Stretch="Uniform"
+                                Width="18" Height="18"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+                        </Grid>
+                      </ControlTemplate>
+                    </Button.Template>
+                  </Button>
+                </Grid>
                 <TextBlock Grid.Row="1"
                            Text="继续说"
                            Foreground="{DynamicResource IvoryBrush}"
@@ -354,13 +383,38 @@
                   Padding="8">
             <Grid>
               <TextBox x:Name="TranscriptBox"
-                       Style="{StaticResource TranscriptBoxStyle}"/>
+                       Style="{StaticResource TranscriptBoxStyle}"
+                       PreviewKeyDown="OnTranscriptPreviewKeyDown"/>
               <TextBlock x:Name="PlaceholderText"
                          Text="转写会出现在这里，可改字。"
                          Foreground="{DynamicResource PlaceholderBrush}"
                          FontSize="13"
                          Margin="2,1,0,0"
                          IsHitTestVisible="False"/>
+              <Button x:Name="UndoContinueButton"
+                      Style="{StaticResource GhostButton}"
+                      Content="撤回刚才继续说的"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Bottom"
+                      Margin="0,0,0,0"
+                      Padding="8,2"
+                      FontSize="11"
+                      Visibility="Collapsed"
+                      Click="OnUndoContinue"/>
+              <Border x:Name="CopyToast"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Top"
+                      Background="{DynamicResource BrassBrush}"
+                      CornerRadius="8"
+                      Padding="10,5"
+                      Opacity="0"
+                      Visibility="Collapsed"
+                      IsHitTestVisible="False">
+                <TextBlock Text="已复制"
+                           Foreground="{DynamicResource InkBrush}"
+                           FontSize="12"
+                           FontWeight="SemiBold"/>
+              </Border>
             </Grid>
           </Border>
 

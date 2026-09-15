@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using VoiceTyper.Services;
 
@@ -13,11 +14,9 @@ public partial class MainWindow : Window
 {
     private const double CapsuleWidth = 188;
     private const double CapsuleHeight = 56;
-    /// <summary>Expand is snappier; collapse settles longer (asymmetric ease-out).</summary>
-    private const int ExpandAnimMs = 360;
-    private const int CollapseAnimMs = 480;
-    /// <summary>Content opacity finishes slightly ahead of width/height settle.</summary>
-    private const int ContentFadeLeadMs = 70;
+    /// <summary>Collapse/expand: current surface fades out, geometry swaps, next surface fades in.</summary>
+    private const int SurfaceFadeOutMs = 280;
+    private const int SurfaceFadeInMs = 340;
     private const int WaveSlots = 96;
     private const int MaxRecordSeconds = 60;
     private const int MicSplitMs = 400;
@@ -53,6 +52,15 @@ public partial class MainWindow : Window
     private MicSlot _recordSlot = MicSlot.Single;
     private double? _sessionPaperLeft;
     private double? _sessionPaperTop;
+    private int _continueCaret;
+    private string? _undoContinueText;
+    private int _undoContinueCaret;
+    private bool _hasContinueUndo;
+    private bool _applyingTranscript;
+    private DispatcherTimer? _highlightTimer;
+    private DispatcherTimer? _toastTimer;
+    private Storyboard? _pulseStory;
+    private Storyboard? _scanStory;
 
     private double PaperWidth => _settings.PaperWidth;
     private double PaperHeight => _settings.PaperHeight;
@@ -99,6 +107,7 @@ public partial class MainWindow : Window
         _settings = SettingsStore.Normalize(settings.Clone());
         ShowInTaskbar = _settings.ShowInTaskbar;
         Topmost = _settings.Topmost;
+        Opacity = _settings.WindowOpacity;
         _dockRight = _settings.DockRight;
         ApplyThemePalette(ThemeService.Apply(_settings.ColorTheme));
         ApplyShadow(false);
@@ -402,146 +411,71 @@ public partial class MainWindow : Window
     private void AnimateShape(double width, double height, bool paper)
     {
         _suppressSizePersist = true;
+        _animating = true;
+        Shell.IsHitTestVisible = false;
+
+        var fadeOut = new DoubleAnimation(Shell.Opacity, 0, TimeSpan.FromMilliseconds(SurfaceFadeOutMs))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+        };
+        fadeOut.Completed += (_, _) =>
+        {
+            Shell.BeginAnimation(OpacityProperty, null);
+            Shell.Opacity = 0;
+            CommitSurface(width, height, paper);
+
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(SurfaceFadeInMs))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            var scaleIn = new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(SurfaceFadeInMs))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            fadeIn.Completed += (_, _) =>
+            {
+                Shell.BeginAnimation(OpacityProperty, null);
+                ShellScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                ShellScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                Shell.Opacity = 1;
+                ShellScale.ScaleX = 1;
+                ShellScale.ScaleY = 1;
+                Shell.IsHitTestVisible = true;
+                _animating = false;
+                _suppressSizePersist = false;
+            };
+            ShellScale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleIn);
+            ShellScale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleIn.Clone());
+            Shell.BeginAnimation(OpacityProperty, fadeIn);
+        };
+        Shell.BeginAnimation(OpacityProperty, fadeOut);
+    }
+
+    private void CommitSurface(double width, double height, bool paper)
+    {
+        BeginAnimation(WidthProperty, null);
+        BeginAnimation(HeightProperty, null);
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
+        PaperLayer.BeginAnimation(OpacityProperty, null);
+        CapsuleLayer.BeginAnimation(OpacityProperty, null);
+
         if (paper)
         {
-            // Capsule locks MaxWidth/Height — lift caps before morphing to paper.
             MinWidth = PaperSize.MinWidth;
             MinHeight = PaperSize.MinHeight;
             MaxWidth = PaperSize.MaxWidth;
             MaxHeight = PaperSize.MaxHeight;
             ResizeMode = ResizeMode.CanResizeWithGrip;
+            Width = width;
+            Height = height;
+            ApplyExpandedVisuals();
         }
         else
         {
             ResizeMode = ResizeMode.NoResize;
+            ApplyCollapsedVisuals(animate: false);
         }
-
-        _animating = true;
-        // Asymmetric motion: expand snappier CubicEaseOut; collapse longer QuinticEaseOut settle.
-        var durationMs = paper ? ExpandAnimMs : CollapseAnimMs;
-        var duration = TimeSpan.FromMilliseconds(durationMs);
-        IEasingFunction geometryEase = paper
-            ? new CubicEase { EasingMode = EasingMode.EaseOut }
-            : new QuinticEase { EasingMode = EasingMode.EaseOut };
-
-        // Staged opacity: content fade finishes ~70ms ahead of geometry settle.
-        var fadeMs = Math.Max(200, durationMs - ContentFadeLeadMs);
-        var fadeDuration = TimeSpan.FromMilliseconds(fadeMs);
-        var work = SystemParameters.WorkArea;
-        double targetLeft;
-        double targetTop;
-        if (paper)
-        {
-            var savedLeft = _settings.PaperLeft ?? _sessionPaperLeft;
-            var savedTop = _settings.PaperTop ?? _sessionPaperTop;
-            var hasSaved = savedLeft.HasValue && savedTop.HasValue;
-            (targetLeft, targetTop) = PaperPlacement.ExpandTarget(
-                hasSaved, savedLeft, savedTop, _dockRight, width, height, work, Top);
-        }
-        else
-        {
-            (targetLeft, targetTop) = PaperPlacement.Dock(_dockRight, width, height, work, Top);
-        }
-
-        // Morph the shared shell (spatial continuity). Prefer EaseOut settle — no linear stop.
-        // HoldEnd until we commit base values in the settle timer (avoids FillBehavior.Stop snap-back).
-        BeginAnimation(WidthProperty, new DoubleAnimation(Width, width, duration) { EasingFunction = geometryEase });
-        BeginAnimation(HeightProperty, new DoubleAnimation(Height, height, duration) { EasingFunction = geometryEase });
-        BeginAnimation(LeftProperty, new DoubleAnimation(Left, targetLeft, duration) { EasingFunction = geometryEase });
-        BeginAnimation(TopProperty, new DoubleAnimation(Top, targetTop, duration) { EasingFunction = geometryEase });
-
-        // Soft corner morph toward target mid-flight (same shell, not a hard visual cut).
-        var midCorner = paper ? 24.0 : 26.0;
-        var endCorner = paper ? 22.0 : 28.0;
-        Shell.CornerRadius = new CornerRadius(midCorner);
-        var cornerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(durationMs * 0.55) };
-        cornerTimer.Tick += (_, _) =>
-        {
-            cornerTimer.Stop();
-            if (_animating)
-            {
-                Shell.CornerRadius = new CornerRadius(endCorner);
-            }
-        };
-        cornerTimer.Start();
-
-        // Content crossfade: paper out ahead on collapse; capsule out first on expand.
-        var paperFade = new DoubleAnimation(PaperLayer.Opacity, paper ? 1 : 0, fadeDuration)
-        {
-            BeginTime = paper ? TimeSpan.FromMilliseconds(45) : TimeSpan.Zero,
-            EasingFunction = new CubicEase
-            {
-                EasingMode = paper ? EasingMode.EaseOut : EasingMode.EaseIn
-            }
-        };
-        var capsuleFade = new DoubleAnimation(CapsuleLayer.Opacity, paper ? 0 : 1, fadeDuration)
-        {
-            BeginTime = paper ? TimeSpan.Zero : TimeSpan.FromMilliseconds(55),
-            EasingFunction = new CubicEase
-            {
-                EasingMode = paper ? EasingMode.EaseIn : EasingMode.EaseOut
-            }
-        };
-        PaperLayer.BeginAnimation(OpacityProperty, paperFade);
-        CapsuleLayer.BeginAnimation(OpacityProperty, capsuleFade);
-
-        // Scale follow-through (not bounce): collapse 1→0.98→1; expand 0.985→1.
-        var scaleAnim = new DoubleAnimationUsingKeyFrames();
-        if (paper)
-        {
-            scaleAnim.KeyFrames.Add(new DiscreteDoubleKeyFrame(0.985, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            scaleAnim.KeyFrames.Add(new EasingDoubleKeyFrame(
-                1.0,
-                KeyTime.FromTimeSpan(duration),
-                new CubicEase { EasingMode = EasingMode.EaseOut }));
-        }
-        else
-        {
-            scaleAnim.KeyFrames.Add(new DiscreteDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            scaleAnim.KeyFrames.Add(new EasingDoubleKeyFrame(
-                0.98,
-                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(durationMs * 0.62)),
-                new QuinticEase { EasingMode = EasingMode.EaseOut }));
-            scaleAnim.KeyFrames.Add(new EasingDoubleKeyFrame(
-                1.0,
-                KeyTime.FromTimeSpan(duration),
-                new CubicEase { EasingMode = EasingMode.EaseOut }));
-        }
-
-        ShellScale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
-        ShellScale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim.Clone());
-
-        var timer = new DispatcherTimer { Interval = duration };
-        timer.Tick += (_, _) =>
-        {
-            timer.Stop();
-            BeginAnimation(WidthProperty, null);
-            BeginAnimation(HeightProperty, null);
-            BeginAnimation(LeftProperty, null);
-            BeginAnimation(TopProperty, null);
-            PaperLayer.BeginAnimation(OpacityProperty, null);
-            CapsuleLayer.BeginAnimation(OpacityProperty, null);
-            ShellScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-            ShellScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-            ShellScale.ScaleX = 1;
-            ShellScale.ScaleY = 1;
-            Width = width;
-            Height = height;
-            Left = targetLeft;
-            Top = targetTop;
-            if (paper)
-            {
-                ApplyExpandedVisuals();
-            }
-            else
-            {
-                ApplyCollapsedVisuals(animate: false);
-            }
-
-            _animating = false;
-            _suppressSizePersist = false;
-        };
-        timer.Start();
     }
 
     private void ApplyExpandedVisuals()
@@ -736,6 +670,15 @@ public partial class MainWindow : Window
         }
 
         _recordSlot = slot;
+        if (slot == MicSlot.Continue)
+        {
+            _continueCaret = TranscriptBox.CaretIndex;
+        }
+        else
+        {
+            ClearContinueUndo();
+        }
+
         await StartRecordingAsync();
         if (slot == MicSlot.NewSentence && _session.Phase == AppPhase.Recording)
         {
@@ -909,16 +852,55 @@ public partial class MainWindow : Window
             _session.TryMarkDone();
             SetTranscribingVisual(false);
             SetMicButtonsEnabled(true);
+            var slot = _recordSlot;
+            var append = MicChrome.AppendNext(slot);
             var existing = TranscriptBox.Text;
-            TranscriptBox.Text = TranscriptJoin.Apply(existing, text, MicChrome.AppendNext(_recordSlot));
+            var join = TranscriptJoin.ApplyAt(
+                existing,
+                text,
+                append,
+                append ? _continueCaret : -1);
+            _applyingTranscript = true;
+            try
+            {
+                TranscriptBox.Text = join.Text;
+            }
+            finally
+            {
+                _applyingTranscript = false;
+            }
+
+            if (join.InsertLength > 0)
+            {
+                TranscriptBox.CaretIndex = join.InsertStart + join.InsertLength;
+            }
+
+            if (append && join.InsertLength > 0)
+            {
+                _undoContinueText = existing;
+                _undoContinueCaret = _continueCaret;
+                _hasContinueUndo = true;
+                if (UndoContinueButton is not null)
+                {
+                    UndoContinueButton.Visibility = Visibility.Visible;
+                }
+
+                HighlightInserted(join.InsertStart, join.InsertLength);
+            }
+            else
+            {
+                ClearContinueUndo();
+                PlayTextEntrance();
+            }
+
             _recordSlot = MicSlot.Single;
-            PlayTextEntrance();
             SyncMicLayout(animate: true);
 
             var copied = false;
             if (_settings.AutoCopy)
             {
-                if (!_clipboard.TryCopy(TranscriptBox.Text, out var message))
+                var payload = CopyPayload.Resolve(join.Text, join.Segment, append, _settings.CopyMode);
+                if (!_clipboard.TryCopy(payload, out var message))
                 {
                     SetStatus(message);
                     CapsuleLabel.Text = "没听清";
@@ -927,6 +909,7 @@ public partial class MainWindow : Window
                 }
 
                 copied = true;
+                ShowCopyToast();
             }
 
             FinishAfterTranscript(copied);
@@ -1031,49 +1014,26 @@ public partial class MainWindow : Window
         }
     }
 
-    private bool _pulseRunning;
-    private bool _scanRunning;
-
     private void SetRecordingVisual(bool on)
     {
         try
         {
+            StopPulse();
+            HideAllPulses();
             if (on)
             {
                 FillActiveHalo(_ember);
-                PulseRing.Opacity = 0.48;
-                PlacePulseOnActiveSlot();
-                if (TryGetStoryboard("PulseStory", out var pulse) &&
-                    pulse is not null)
-                {
-                    pulse.Begin(this, true);
-                    _pulseRunning = true;
-                }
+                var (ring, scale) = ActivePulse();
+                StartPulse(ring, scale);
             }
             else
             {
-                if (_pulseRunning &&
-                    TryGetStoryboard("PulseStory", out var pulse) &&
-                    pulse is not null)
-                {
-                    pulse.Stop(this);
-                }
-
-                _pulseRunning = false;
-                PulseRing.Opacity = 0;
-                PulseScale.ScaleX = 1;
-                PulseScale.ScaleY = 1;
                 FillIdleHalos();
             }
         }
         catch
         {
-            _pulseRunning = false;
-            if (PulseRing is not null)
-            {
-                PulseRing.Opacity = 0;
-            }
-
+            HideAllPulses();
             if (MicHalo is not null)
             {
                 MicHalo.Fill = on ? _ember : _halo;
@@ -1085,57 +1045,142 @@ public partial class MainWindow : Window
     {
         try
         {
+            StopScan();
+            HideAllScans();
             if (on)
             {
-                ScanArc.Opacity = 1;
-                PlaceScanOnActiveSlot();
-                if (TryGetStoryboard("ScanStory", out var scan) &&
-                    scan is not null)
-                {
-                    scan.Begin(this, true);
-                    _scanRunning = true;
-                }
-            }
-            else
-            {
-                if (_scanRunning &&
-                    TryGetStoryboard("ScanStory", out var scan) &&
-                    scan is not null)
-                {
-                    scan.Stop(this);
-                }
-
-                _scanRunning = false;
-                ScanArc.Opacity = 0;
+                var (arc, rotate) = ActiveScan();
+                StartScan(arc, rotate);
             }
         }
         catch
         {
-            _scanRunning = false;
-            if (ScanArc is not null)
-            {
-                ScanArc.Opacity = on ? 1 : 0;
-            }
+            HideAllScans();
         }
     }
 
-    private bool TryGetStoryboard(string key, out Storyboard? storyboard)
+    private (Ellipse Ring, ScaleTransform Scale) ActivePulse()
     {
-        storyboard = null;
-        try
+        if (_dualMic && _recordSlot == MicSlot.NewSentence && PulseRingNew is not null)
         {
-            if (FindResource(key) is Storyboard sb)
-            {
-                storyboard = sb;
-                return true;
-            }
-        }
-        catch
-        {
-            // Resource missing or not a Storyboard.
+            return (PulseRingNew, PulseScaleNew);
         }
 
-        return false;
+        if (_dualMic && _recordSlot == MicSlot.Continue && PulseRingContinue is not null)
+        {
+            return (PulseRingContinue, PulseScaleContinue);
+        }
+
+        return (PulseRing, PulseScale);
+    }
+
+    private (System.Windows.Shapes.Path Arc, RotateTransform Rotate) ActiveScan()
+    {
+        if (_dualMic && _recordSlot == MicSlot.NewSentence && ScanArcNew is not null)
+        {
+            return (ScanArcNew, ScanRotateNew);
+        }
+
+        if (_dualMic && _recordSlot == MicSlot.Continue && ScanArcContinue is not null)
+        {
+            return (ScanArcContinue, ScanRotateContinue);
+        }
+
+        return (ScanArc, ScanRotate);
+    }
+
+    private void HideAllPulses()
+    {
+        ResetPulse(PulseRing, PulseScale);
+        ResetPulse(PulseRingNew, PulseScaleNew);
+        ResetPulse(PulseRingContinue, PulseScaleContinue);
+    }
+
+    private static void ResetPulse(Ellipse? ring, ScaleTransform? scale)
+    {
+        if (ring is not null)
+        {
+            ring.BeginAnimation(OpacityProperty, null);
+            ring.Opacity = 0;
+        }
+
+        if (scale is not null)
+        {
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            scale.ScaleX = 1;
+            scale.ScaleY = 1;
+        }
+    }
+
+    private void HideAllScans()
+    {
+        ResetScan(ScanArc, ScanRotate);
+        ResetScan(ScanArcNew, ScanRotateNew);
+        ResetScan(ScanArcContinue, ScanRotateContinue);
+    }
+
+    private static void ResetScan(System.Windows.Shapes.Path? arc, RotateTransform? rotate)
+    {
+        if (arc is not null)
+        {
+            arc.BeginAnimation(OpacityProperty, null);
+            arc.Opacity = 0;
+        }
+
+        if (rotate is not null)
+        {
+            rotate.BeginAnimation(RotateTransform.AngleProperty, null);
+            rotate.Angle = 0;
+        }
+    }
+
+    private void StartPulse(Ellipse ring, ScaleTransform scale)
+    {
+        StopPulse();
+        ring.Opacity = 0.28;
+        var ease = new QuinticEase { EasingMode = EasingMode.EaseInOut };
+        var duration = TimeSpan.FromSeconds(1.85);
+        var sb = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+        var opacity = new DoubleAnimation(0.28, 0.06, duration) { AutoReverse = true, EasingFunction = ease };
+        Storyboard.SetTarget(opacity, ring);
+        Storyboard.SetTargetProperty(opacity, new PropertyPath(OpacityProperty));
+        var scaleX = new DoubleAnimation(1.0, 1.06, duration) { AutoReverse = true, EasingFunction = ease };
+        Storyboard.SetTarget(scaleX, scale);
+        Storyboard.SetTargetProperty(scaleX, new PropertyPath(ScaleTransform.ScaleXProperty));
+        var scaleY = new DoubleAnimation(1.0, 1.06, duration) { AutoReverse = true, EasingFunction = ease };
+        Storyboard.SetTarget(scaleY, scale);
+        Storyboard.SetTargetProperty(scaleY, new PropertyPath(ScaleTransform.ScaleYProperty));
+        sb.Children.Add(opacity);
+        sb.Children.Add(scaleX);
+        sb.Children.Add(scaleY);
+        sb.Begin();
+        _pulseStory = sb;
+    }
+
+    private void StopPulse()
+    {
+        _pulseStory?.Stop();
+        _pulseStory = null;
+    }
+
+    private void StartScan(System.Windows.Shapes.Path arc, RotateTransform rotate)
+    {
+        StopScan();
+        arc.Opacity = 1;
+        var sb = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+        var spin = new DoubleAnimation(0, 360, TimeSpan.FromSeconds(1.65));
+        Storyboard.SetTarget(spin, rotate);
+        Storyboard.SetTargetProperty(spin, new PropertyPath(RotateTransform.AngleProperty));
+        sb.Children.Add(spin);
+        sb.Begin();
+        _scanStory = sb;
+    }
+
+    private void StopScan()
+    {
+        _scanStory?.Stop();
+        _scanStory = null;
     }
 
     private void PlayTextEntrance()
@@ -1147,11 +1192,133 @@ public partial class MainWindow : Window
             });
     }
 
+    private void HighlightInserted(int start, int length)
+    {
+        CancelHighlight();
+        if (length <= 0 || start < 0 || start + length > TranscriptBox.Text.Length)
+        {
+            return;
+        }
+
+        TranscriptBox.SelectionBrush = _ember;
+        TranscriptBox.SelectionOpacity = 0.55;
+        TranscriptBox.Select(start, length);
+        _highlightTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2200) };
+        _highlightTimer.Tick += (_, _) =>
+        {
+            CancelHighlight();
+            TranscriptBox.CaretIndex = Math.Min(start + length, TranscriptBox.Text.Length);
+        };
+        _highlightTimer.Start();
+    }
+
+    private void CancelHighlight()
+    {
+        _highlightTimer?.Stop();
+        _highlightTimer = null;
+        try
+        {
+            TranscriptBox.SelectionBrush = FindResource("BrassBrush") as Brush ?? _brass;
+            TranscriptBox.SelectionOpacity = 0.35;
+            var caret = TranscriptBox.CaretIndex;
+            TranscriptBox.SelectionLength = 0;
+            TranscriptBox.CaretIndex = caret;
+        }
+        catch
+        {
+            // TextBox may not be ready during shutdown.
+        }
+    }
+
+    private void ShowCopyToast()
+    {
+        if (!_settings.ShowCopyToast || CopyToast is null)
+        {
+            return;
+        }
+
+        _toastTimer?.Stop();
+        CopyToast.Visibility = Visibility.Visible;
+        CopyToast.BeginAnimation(OpacityProperty, null);
+        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        fadeIn.Completed += (_, _) =>
+        {
+            _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1400) };
+            _toastTimer.Tick += (_, _) =>
+            {
+                _toastTimer.Stop();
+                var fadeOut = new DoubleAnimation(CopyToast.Opacity, 0, TimeSpan.FromMilliseconds(260))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                };
+                fadeOut.Completed += (_, _) =>
+                {
+                    CopyToast.BeginAnimation(OpacityProperty, null);
+                    CopyToast.Opacity = 0;
+                    CopyToast.Visibility = Visibility.Collapsed;
+                };
+                CopyToast.BeginAnimation(OpacityProperty, fadeOut);
+            };
+            _toastTimer.Start();
+        };
+        CopyToast.BeginAnimation(OpacityProperty, fadeIn);
+    }
+
+    private void ClearContinueUndo()
+    {
+        _hasContinueUndo = false;
+        _undoContinueText = null;
+        if (UndoContinueButton is not null)
+        {
+            UndoContinueButton.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void OnUndoContinue(object sender, RoutedEventArgs e)
+    {
+        if (!_hasContinueUndo || _undoContinueText is null)
+        {
+            return;
+        }
+
+        CancelHighlight();
+        _applyingTranscript = true;
+        try
+        {
+            TranscriptBox.Text = _undoContinueText;
+            TranscriptBox.CaretIndex = Math.Clamp(_undoContinueCaret, 0, TranscriptBox.Text.Length);
+        }
+        finally
+        {
+            _applyingTranscript = false;
+        }
+
+        ClearContinueUndo();
+        SetStatus("已撤回刚才继续说的内容");
+    }
+
+    private void OnTranscriptPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control && _hasContinueUndo)
+        {
+            OnUndoContinue(sender, e);
+            e.Handled = true;
+        }
+    }
+
     private void OnTranscriptChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
         PlaceholderText.Visibility = string.IsNullOrWhiteSpace(TranscriptBox.Text)
             ? Visibility.Visible
             : Visibility.Collapsed;
+        if (!_applyingTranscript)
+        {
+            CancelHighlight();
+        }
+
         if (_session.Phase is AppPhase.Idle or AppPhase.Done)
         {
             SyncMicLayout(animate: _expanded && !_animating);
@@ -1351,56 +1518,28 @@ public partial class MainWindow : Window
 
     private void PlacePulseOnActiveSlot()
     {
-        if (PulseRing is null)
+        if (_session.Phase != AppPhase.Recording)
         {
             return;
         }
 
-        if (_dualMic && _recordSlot == MicSlot.NewSentence)
-        {
-            PulseRing.HorizontalAlignment = HorizontalAlignment.Left;
-            PulseRing.Margin = new Thickness(18, 8, 0, 0);
-            PulseRing.Width = 70;
-            PulseRing.Height = 70;
-        }
-        else if (_dualMic && _recordSlot == MicSlot.Continue)
-        {
-            PulseRing.HorizontalAlignment = HorizontalAlignment.Right;
-            PulseRing.Margin = new Thickness(0, 8, 18, 0);
-            PulseRing.Width = 70;
-            PulseRing.Height = 70;
-        }
-        else
-        {
-            PulseRing.HorizontalAlignment = HorizontalAlignment.Center;
-            PulseRing.Margin = new Thickness(0, 2, 0, 0);
-            PulseRing.Width = 86;
-            PulseRing.Height = 86;
-        }
+        StopPulse();
+        HideAllPulses();
+        var (ring, scale) = ActivePulse();
+        StartPulse(ring, scale);
     }
 
     private void PlaceScanOnActiveSlot()
     {
-        if (ScanArc is null)
+        if (_session.Phase != AppPhase.Transcribing)
         {
             return;
         }
 
-        if (_dualMic && _recordSlot == MicSlot.NewSentence)
-        {
-            ScanArc.HorizontalAlignment = HorizontalAlignment.Left;
-            ScanArc.Margin = new Thickness(24, 18, 0, 0);
-        }
-        else if (_dualMic && _recordSlot == MicSlot.Continue)
-        {
-            ScanArc.HorizontalAlignment = HorizontalAlignment.Right;
-            ScanArc.Margin = new Thickness(0, 18, 24, 0);
-        }
-        else
-        {
-            ScanArc.HorizontalAlignment = HorizontalAlignment.Center;
-            ScanArc.Margin = new Thickness(0, 16, 0, 0);
-        }
+        StopScan();
+        HideAllScans();
+        var (arc, rotate) = ActiveScan();
+        StartScan(arc, rotate);
     }
 
     private void OnTick(object? sender, EventArgs e)
@@ -1611,6 +1750,7 @@ public partial class MainWindow : Window
         {
             Owner = IsVisible ? this : null
         };
+        _settingsWindow.WindowOpacityPreview += value => Opacity = value;
         try
         {
             var ok = _settingsWindow.ShowDialog() == true;
@@ -1623,6 +1763,7 @@ public partial class MainWindow : Window
             {
                 // Cancel already reverted theme in SettingsWindow; refresh local brushes.
                 ApplyThemePalette(ThemeService.Apply(_settings.ColorTheme));
+                Opacity = _settings.WindowOpacity;
             }
         }
         finally

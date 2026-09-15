@@ -4,9 +4,9 @@
         xmlns:svc="clr-namespace:VoiceTyper.Services"
         Title="VoiceTyper 设置"
         Width="440"
-        Height="520"
+        Height="580"
         MinWidth="400"
-        MinHeight="440"
+        MinHeight="480"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="True"
@@ -67,6 +67,20 @@
         <CheckBox x:Name="CollapseOnDeactivateBox" Style="{StaticResource SettingsCheckBox}" Content="失焦时自动收成胶囊"/>
         <CheckBox x:Name="VadAutoStopBox" Style="{StaticResource SettingsCheckBox}" Content="静音约 1 秒自动停录"/>
         <CheckBox x:Name="AutoCopyBox" Style="{StaticResource SettingsCheckBox}" Content="转完自动进剪贴板"/>
+        <CheckBox x:Name="ShowCopyToastBox" Style="{StaticResource SettingsCheckBox}" Content="复制后弹出「已复制」提示"/>
+        <TextBlock Style="{StaticResource SettingsHint}"
+                   Text="{x:Static svc:UiCopy.CopyToastHint}"
+                   Margin="0,0,0,10"/>
+
+        <TextBlock Style="{StaticResource SettingsFieldLabel}" Text="自动复制范围"/>
+        <ComboBox x:Name="CopyModeBox" Style="{StaticResource SettingsComboBox}">
+          <ComboBoxItem Content="只复制新加的内容" Tag="NewOnly"/>
+          <ComboBoxItem Content="每次都复制整段" Tag="Entire"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource SettingsHint}"
+                   Text="{x:Static svc:UiCopy.CopyModeHint}"
+                   Margin="0,0,0,10"/>
+
         <CheckBox x:Name="CollapseAfterDoneBox" Style="{StaticResource SettingsCheckBox}" Content="转完后收成胶囊"/>
         <TextBlock Style="{StaticResource SettingsHint}"
                    Text="{x:Static svc:UiCopy.CollapseAfterDoneHint}"
@@ -89,6 +103,27 @@
           <ComboBoxItem Content="右边" Tag="Right"/>
           <ComboBoxItem Content="左边" Tag="Left"/>
         </ComboBox>
+
+        <TextBlock Style="{StaticResource SettingsFieldLabel}" Text="窗口不透明度"/>
+        <DockPanel Margin="0,0,0,4" LastChildFill="True">
+          <TextBlock x:Name="OpacityValueText"
+                     DockPanel.Dock="Right"
+                     Width="44"
+                     Text="100%"
+                     Foreground="{DynamicResource BrassBrush}"
+                     FontSize="13"
+                     VerticalAlignment="Center"
+                     TextAlignment="Right"/>
+          <Slider x:Name="OpacitySlider"
+                  Style="{StaticResource SettingsSlider}"
+                  Margin="0,0,12,0"
+                  TickFrequency="0.05"
+                  IsMoveToPointEnabled="True"
+                  ValueChanged="OnOpacitySliderChanged"/>
+        </DockPanel>
+        <TextBlock Style="{StaticResource SettingsHint}"
+                   Text="{x:Static svc:UiCopy.OpacityHint}"
+                   Margin="0,0,0,14"/>
 
         <TextBlock Style="{StaticResource SettingsFieldLabel}" Text="纸张大小"/>
         <ComboBox x:Name="PaperSizeBox" Style="{StaticResource SettingsComboBox}">

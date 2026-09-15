@@ -16,6 +16,9 @@ public class SettingsStoreTests
         Assert.False(s.CollapseOnDeactivate);
         Assert.True(s.VadAutoStop);
         Assert.True(s.AutoCopy);
+        Assert.Equal(CopyModes.NewOnly, s.CopyMode);
+        Assert.True(s.ShowCopyToast);
+        Assert.Equal(1.0, s.WindowOpacity);
         Assert.False(s.CollapseAfterDone);
         Assert.Equal(DockSides.Right, s.DockSide);
         Assert.Equal(ShadowModes.Off, s.ShadowMode);
@@ -43,6 +46,9 @@ public class SettingsStoreTests
                 CollapseOnDeactivate = true,
                 VadAutoStop = false,
                 AutoCopy = false,
+                CopyMode = CopyModes.Entire,
+                ShowCopyToast = false,
+                WindowOpacity = 0.7,
                 CollapseAfterDone = true,
                 DockSide = DockSides.Left,
                 ShadowMode = ShadowModes.Light,
@@ -62,6 +68,9 @@ public class SettingsStoreTests
             Assert.True(loaded.CollapseOnDeactivate);
             Assert.False(loaded.VadAutoStop);
             Assert.False(loaded.AutoCopy);
+            Assert.Equal(CopyModes.Entire, loaded.CopyMode);
+            Assert.False(loaded.ShowCopyToast);
+            Assert.Equal(0.7, loaded.WindowOpacity);
             Assert.True(loaded.CollapseAfterDone);
             Assert.Equal(DockSides.Left, loaded.DockSide);
             Assert.Equal(ShadowModes.Off, loaded.ShadowMode);
@@ -105,13 +114,18 @@ public class SettingsStoreTests
             CloseBehavior = "explode",
             DockSide = "top",
             ShadowMode = "heavy",
-            ColorTheme = "neon-purple"
+            ColorTheme = "neon-purple",
+            CopyMode = "both",
+            WindowOpacity = 2.4
         };
         var n = SettingsStore.Normalize(weird);
         Assert.Equal(CloseBehaviors.Exit, n.CloseBehavior);
         Assert.Equal(DockSides.Right, n.DockSide);
         Assert.Equal(ShadowModes.Off, n.ShadowMode);
         Assert.Equal(ColorThemes.InkBlack, n.ColorTheme);
+        Assert.Equal(CopyModes.NewOnly, n.CopyMode);
+        Assert.Equal(1.0, n.WindowOpacity);
+        Assert.Equal(0.40, SettingsStore.Normalize(new AppSettings { WindowOpacity = 0.1 }).WindowOpacity);
     }
 
     [Fact]

@@ -13,8 +13,14 @@ public partial class SettingsWindow : Window
     private readonly AppSettings _draft;
     private readonly string _openingTheme;
     private bool _suppressThemePreview;
+    private bool _opacityDragging;
+    private double _opacityVelocity;
+    private double _lastOpacityValue;
+    private long _lastOpacityTicks;
 
     public AppSettings? Result { get; private set; }
+
+    public event Action<double>? WindowOpacityPreview;
 
     public SettingsWindow(AppSettings current)
     {
@@ -22,6 +28,9 @@ public partial class SettingsWindow : Window
         _draft = current.Clone();
         _openingTheme = SettingsStore.Normalize(current.Clone()).ColorTheme;
         LoadUi(_draft);
+        OpacitySlider.AddHandler(Thumb.DragStartedEvent, new DragStartedEventHandler(OnOpacityDragStarted), true);
+        OpacitySlider.AddHandler(Thumb.DragDeltaEvent, new DragDeltaEventHandler(OnOpacityDragDelta), true);
+        OpacitySlider.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler(OnOpacityDragCompleted), true);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -68,7 +77,11 @@ public partial class SettingsWindow : Window
             CollapseOnDeactivateBox.IsChecked = s.CollapseOnDeactivate;
             VadAutoStopBox.IsChecked = s.VadAutoStop;
             AutoCopyBox.IsChecked = s.AutoCopy;
+            ShowCopyToastBox.IsChecked = s.ShowCopyToast;
+            SelectByTag(CopyModeBox, s.CopyMode);
             CollapseAfterDoneBox.IsChecked = s.CollapseAfterDone;
+            OpacitySlider.Value = Math.Clamp(s.WindowOpacity, 0.40, 1.0);
+            OpacityValueText.Text = FormatOpacity(OpacitySlider.Value);
         }
         finally
         {
@@ -102,7 +115,10 @@ public partial class SettingsWindow : Window
             CollapseOnDeactivate = CollapseOnDeactivateBox.IsChecked == true,
             VadAutoStop = VadAutoStopBox.IsChecked == true,
             AutoCopy = AutoCopyBox.IsChecked == true,
+            ShowCopyToast = ShowCopyToastBox.IsChecked == true,
+            CopyMode = ReadTag(CopyModeBox, CopyModes.NewOnly),
             CollapseAfterDone = CollapseAfterDoneBox.IsChecked == true,
+            WindowOpacity = Math.Clamp(OpacitySlider.Value, 0.40, 1.0),
             AnimationsEnabled = true,
             PaperSizePreset = preset,
             PaperWidth = width,
@@ -111,6 +127,64 @@ public partial class SettingsWindow : Window
             PaperTop = _draft.PaperTop
         };
     }
+
+    private void OnOpacitySliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!IsLoaded || OpacityValueText is null)
+        {
+            return;
+        }
+
+        OpacityValueText.Text = FormatOpacity(e.NewValue);
+        if (_opacityDragging)
+        {
+            var now = Environment.TickCount64;
+            var dt = Math.Max(1, now - _lastOpacityTicks) / 1000.0;
+            _opacityVelocity = (e.NewValue - _lastOpacityValue) / dt;
+            _lastOpacityValue = e.NewValue;
+            _lastOpacityTicks = now;
+        }
+
+        if (!_suppressThemePreview)
+        {
+            WindowOpacityPreview?.Invoke(Math.Clamp(e.NewValue, 0.40, 1.0));
+        }
+    }
+
+    private void OnOpacityDragStarted(object sender, DragStartedEventArgs e)
+    {
+        _opacityDragging = true;
+        _opacityVelocity = 0;
+        _lastOpacityValue = OpacitySlider.Value;
+        _lastOpacityTicks = Environment.TickCount64;
+    }
+
+    private void OnOpacityDragDelta(object sender, DragDeltaEventArgs e)
+    {
+        // Velocity is sampled from ValueChanged while dragging.
+    }
+
+    private void OnOpacityDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        _opacityDragging = false;
+        var overshoot = Math.Clamp(_opacityVelocity * 0.06, -0.08, 0.08);
+        var raw = Math.Clamp(OpacitySlider.Value + overshoot, 0.40, 1.0);
+        var snapped = Math.Clamp(Math.Round(raw / 0.05) * 0.05, 0.40, 1.0);
+        var spring = new DoubleAnimation(OpacitySlider.Value, snapped, TimeSpan.FromMilliseconds(280))
+        {
+            EasingFunction = new BackEase { Amplitude = 0.28, EasingMode = EasingMode.EaseOut }
+        };
+        spring.Completed += (_, _) =>
+        {
+            OpacitySlider.BeginAnimation(Slider.ValueProperty, null);
+            OpacitySlider.Value = snapped;
+            WindowOpacityPreview?.Invoke(snapped);
+        };
+        OpacitySlider.BeginAnimation(Slider.ValueProperty, spring);
+    }
+
+    private static string FormatOpacity(double value) =>
+        $"{(int)Math.Round(Math.Clamp(value, 0.40, 1.0) * 100)}%";
 
     private void OnThemePreviewChanged(object sender, SelectionChangedEventArgs e)
     {

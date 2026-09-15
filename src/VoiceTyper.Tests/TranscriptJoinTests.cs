@@ -45,4 +45,28 @@ public class TranscriptJoinTests
     {
         Assert.Equal("已有", TranscriptJoin.Apply("已有", "   ", append: true));
     }
+
+    [Fact]
+    public void Continue_inserts_at_caret_instead_of_the_end()
+    {
+        var join = TranscriptJoin.ApplyAt("前段后段", "插入", append: true, caretIndex: 2);
+        Assert.Equal("前段 插入后段", join.Text);
+        Assert.Equal("插入", join.Segment);
+        Assert.Equal(3, join.InsertStart);
+        Assert.Equal(2, join.InsertLength);
+    }
+
+    [Fact]
+    public void Continue_at_end_matches_legacy_append()
+    {
+        var join = TranscriptJoin.ApplyAt("第一句", "第二句", append: true, caretIndex: 3);
+        Assert.Equal("第一句 第二句", join.Text);
+        Assert.Equal(4, join.InsertStart);
+    }
+
+    [Fact]
+    public void Incoming_mixed_punctuation_is_cleaned_before_join()
+    {
+        Assert.Equal("你好。", TranscriptJoin.Apply(null, "你好。,", append: false));
+    }
 }

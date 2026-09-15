@@ -296,6 +296,61 @@
       </Setter>
     </Style>
 
+    <Style x:Key="SettingsSlider" TargetType="Slider">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="Margin" Value="0,0,0,8"/>
+      <Setter Property="Minimum" Value="0.4"/>
+      <Setter Property="Maximum" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Focusable" Value="True"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid>
+              <Border Height="4"
+                      CornerRadius="2"
+                      Background="{DynamicResource RuleBrush}"
+                      VerticalAlignment="Center"/>
+              <Track x:Name="PART_Track">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="Slider.DecreaseLarge">
+                    <RepeatButton.Template>
+                      <ControlTemplate TargetType="RepeatButton">
+                        <Border Height="4"
+                                CornerRadius="2"
+                                Background="{DynamicResource BrassBrush}"
+                                VerticalAlignment="Center"/>
+                      </ControlTemplate>
+                    </RepeatButton.Template>
+                  </RepeatButton>
+                </Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="Slider.IncreaseLarge">
+                    <RepeatButton.Template>
+                      <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent"/>
+                      </ControlTemplate>
+                    </RepeatButton.Template>
+                  </RepeatButton>
+                </Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Width="16" Height="16">
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Ellipse Fill="{DynamicResource IvoryBrush}"
+                                 Stroke="{DynamicResource BrassBrush}"
+                                 StrokeThickness="1.5"/>
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <Style x:Key="TranscriptBoxStyle" TargetType="TextBox">
       <Style.Resources>
         <Style TargetType="ScrollBar" BasedOn="{StaticResource QuietScrollBar}"/>

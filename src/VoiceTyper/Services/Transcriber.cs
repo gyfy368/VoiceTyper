@@ -81,7 +81,7 @@ public sealed class Transcriber : IDisposable
             stream.AcceptWaveform(sampleRate, samples);
             recognizer.Decode(stream);
             var result = stream.Result;
-            return (result?.Text ?? string.Empty).Trim();
+            return PunctuationCleanup.Clean(result?.Text);
         }
         catch (NullReferenceException)
         {

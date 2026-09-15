@@ -17,6 +17,15 @@ public sealed class AppSettings
 
     public bool AutoCopy { get; set; } = true;
 
+    /// <summary>Entire = 复制整段；NewOnly = 继续说时只复制新加的内容。</summary>
+    public string CopyMode { get; set; } = CopyModes.NewOnly;
+
+    /// <summary>自动复制成功后是否弹出「已复制」。</summary>
+    public bool ShowCopyToast { get; set; } = true;
+
+    /// <summary>窗口整体不透明度，0.40–1.00。</summary>
+    public double WindowOpacity { get; set; } = 1.0;
+
     /// <summary>转写完成（含自动复制）后是否收成胶囊。默认关，方便改字。</summary>
     public bool CollapseAfterDone { get; set; }
 
@@ -67,6 +76,9 @@ public sealed class AppSettings
         CollapseOnDeactivate = CollapseOnDeactivate,
         VadAutoStop = VadAutoStop,
         AutoCopy = AutoCopy,
+        CopyMode = CopyMode,
+        ShowCopyToast = ShowCopyToast,
+        WindowOpacity = WindowOpacity,
         CollapseAfterDone = CollapseAfterDone,
         DockSide = DockSide,
         ShadowMode = ShadowMode,
