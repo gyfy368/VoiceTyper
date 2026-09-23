@@ -1,15 +1,16 @@
-# v1.1.0 发布说明（创建 GitHub Release 时可粘贴）
+# v1.1.1 发布说明（创建 GitHub Release 时可粘贴）
 
 Windows 10/11 x64，解压即用。模型已经打进压缩包，仓库里没有 onnx。
 
-请上传资源：`dist/VoiceTyper-v1.1.0-win-x64.zip`（约 225 MB）。不要把 zip 或 `models/*.onnx` 推进 Git。
+请上传资源：`dist/VoiceTyper-v1.1.1-win-x64.zip`（约 225 MB）。不要把 zip 或 `models/*.onnx` 推进 Git。
 
-这次主要是录音后续写：光标处插入、只复制新加的内容、复制提示、撤回继续说、胶囊先淡出再换面。
+这次把任务栏、资源管理器和托盘图标换成拿纸的鳄鱼。功能与 1.1.0 相同。
 
 ---
 
 Unzip and double-click `VoiceTyper.exe`. No .NET install needed.
 
+- Taskbar, Explorer, and tray use the crocodile-with-paper icon
 - Continue-say inserts at the caret; optional copy of the new segment only
 - Copy toast, window opacity, and undo for the last continue utterance
 - Capsule and paper fade in sequence instead of morphing while both are visible

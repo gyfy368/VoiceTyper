@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root "src\VoiceTyper\VoiceTyper.csproj"
-$version = "1.1.0"
+$version = "1.1.1"
 $publishDir = Join-Path $root "dist\publish"
 $stageDir = Join-Path $root "dist\stage"
 $zipName = "VoiceTyper-v$version-win-x64.zip"

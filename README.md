@@ -14,7 +14,7 @@
 
 模型（约 228 MB 的 onnx）在 **Release 压缩包**里，不在 Git 仓库。clone 下来不能直接转写。
 
-1. 在 GitHub Releases 下载 `VoiceTyper-v1.1.0-win-x64.zip`
+1. 在 GitHub Releases 下载 `VoiceTyper-v1.1.1-win-x64.zip`
 2. 解压到任意文件夹
 3. 双击 `VoiceTyper.exe`
 4. 点贴边胶囊展开；点麦克开始说。停大约一秒会自动结束，也可以再点麦克停
@@ -64,7 +64,7 @@ dotnet test VoiceTyper.sln -c Release
 .\scripts\publish-release.ps1
 ```
 
-产物：`dist\VoiceTyper-v1.1.0-win-x64.zip`（exe + models + README）。
+产物：`dist\VoiceTyper-v1.1.1-win-x64.zip`（exe + models + README）。
 
 仓库里没有 onnx。第一次自己跑，程序会尝试下载模型；下失败就把 Release 里的 `models/` 整个拷到仓库根目录。不要 `git add` 那些 onnx。
 
@@ -86,7 +86,7 @@ Audio never leaves the machine. Windows 10/11 x64.
 
 The models (~228 MB onnx) are **in the zip**, not in git. Cloning the repo is not enough to transcribe.
 
-1. Download `VoiceTyper-v1.1.0-win-x64.zip` from GitHub Releases
+1. Download `VoiceTyper-v1.1.1-win-x64.zip` from GitHub Releases
 2. Unzip anywhere
 3. Double-click `VoiceTyper.exe`
 4. Click the capsule, then the mic. Silence for about a second stops recording; clicking the mic also stops
@@ -124,7 +124,7 @@ dotnet test VoiceTyper.sln -c Release
 .\scripts\publish-release.ps1
 ```
 
-Output: `dist\VoiceTyper-v1.1.0-win-x64.zip`.
+Output: `dist\VoiceTyper-v1.1.1-win-x64.zip`.
 
 Onnx files are gitignored. On first run the app may download models; if that fails, copy `models/` from the Release zip. Do not force-add onnx into git.
 
