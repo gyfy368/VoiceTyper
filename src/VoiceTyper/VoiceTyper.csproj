@@ -9,7 +9,7 @@
     <RootNamespace>VoiceTyper</RootNamespace>
     <Product>VoiceTyper</Product>
     <Description>Local voice-to-text paper window. Copies transcript to the clipboard.</Description>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
