@@ -393,30 +393,6 @@
                          FontSize="13"
                          Margin="2,1,0,0"
                          IsHitTestVisible="False"/>
-              <Button x:Name="UndoContinueButton"
-                      Style="{StaticResource GhostButton}"
-                      Content="撤回刚才继续说的"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Bottom"
-                      Margin="0,0,0,0"
-                      Padding="8,2"
-                      FontSize="11"
-                      Visibility="Collapsed"
-                      Click="OnUndoContinue"/>
-              <Border x:Name="CopyToast"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Top"
-                      Background="{DynamicResource BrassBrush}"
-                      CornerRadius="8"
-                      Padding="10,5"
-                      Opacity="0"
-                      Visibility="Collapsed"
-                      IsHitTestVisible="False">
-                <TextBlock Text="已复制"
-                           Foreground="{DynamicResource InkBrush}"
-                           FontSize="12"
-                           FontWeight="SemiBold"/>
-              </Border>
             </Grid>
           </Border>
 
@@ -428,7 +404,9 @@
                     Foreground="{DynamicResource BrassBrush}"
                     Click="OnDownloadClick"
                     Visibility="Collapsed"/>
-            <StackPanel VerticalAlignment="Center">
+            <!-- Hint keeps the row height. Toast and undo paint over that hint, so the text well does not shrink. -->
+            <Grid x:Name="HintBand" ClipToBounds="True" VerticalAlignment="Center" SizeChanged="OnHintBandSizeChanged">
+              <StackPanel x:Name="HintCopy" VerticalAlignment="Center">
               <TextBlock x:Name="HintText"
                          Text="结果会复制到剪贴板，窗口先留着方便改"
                          Foreground="{DynamicResource MutedBrush}"
@@ -440,7 +418,35 @@
                          FontSize="10"
                          Margin="0,2,0,0"
                          TextWrapping="Wrap"/>
-            </StackPanel>
+              </StackPanel>
+              <Canvas VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                <WrapPanel x:Name="HintChrome" Canvas.Left="0" Canvas.Top="0">
+                  <Border x:Name="CopyToast"
+                          Background="{DynamicResource BrassBrush}"
+                          CornerRadius="8"
+                          Padding="10,5"
+                          Margin="0,0,8,0"
+                          Opacity="0"
+                          Visibility="Collapsed"
+                          IsHitTestVisible="False"
+                          VerticalAlignment="Center">
+                    <TextBlock Text="已复制"
+                               Foreground="{DynamicResource InkBrush}"
+                               FontSize="12"
+                               FontWeight="SemiBold"/>
+                  </Border>
+                  <Button x:Name="UndoContinueButton"
+                          Style="{StaticResource GhostButton}"
+                          Content="撤回刚才继续说的"
+                          Padding="8,2"
+                          FontSize="11"
+                          Opacity="0"
+                          Visibility="Collapsed"
+                          VerticalAlignment="Center"
+                          Click="OnUndoContinue"/>
+                </WrapPanel>
+              </Canvas>
+            </Grid>
           </DockPanel>
 
           <!-- Corner grip: AllowsTransparency windows often lack OS edge resize. -->

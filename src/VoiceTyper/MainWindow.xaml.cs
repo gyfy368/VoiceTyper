@@ -880,10 +880,7 @@ public partial class MainWindow : Window
                 _undoContinueText = existing;
                 _undoContinueCaret = _continueCaret;
                 _hasContinueUndo = true;
-                if (UndoContinueButton is not null)
-                {
-                    UndoContinueButton.Visibility = Visibility.Visible;
-                }
+                ShowUndoButton();
 
                 HighlightInserted(join.InsertStart, join.InsertLength);
             }
@@ -1240,7 +1237,8 @@ public partial class MainWindow : Window
         _toastTimer?.Stop();
         CopyToast.Visibility = Visibility.Visible;
         CopyToast.BeginAnimation(OpacityProperty, null);
-        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
+        YieldHint(true);
+        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
@@ -1250,7 +1248,7 @@ public partial class MainWindow : Window
             _toastTimer.Tick += (_, _) =>
             {
                 _toastTimer.Stop();
-                var fadeOut = new DoubleAnimation(CopyToast.Opacity, 0, TimeSpan.FromMilliseconds(260))
+                var fadeOut = new DoubleAnimation(CopyToast.Opacity, 0, TimeSpan.FromMilliseconds(280))
                 {
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
                 };
@@ -1259,6 +1257,7 @@ public partial class MainWindow : Window
                     CopyToast.BeginAnimation(OpacityProperty, null);
                     CopyToast.Opacity = 0;
                     CopyToast.Visibility = Visibility.Collapsed;
+                    YieldHint(HintChromeVisible);
                 };
                 CopyToast.BeginAnimation(OpacityProperty, fadeOut);
             };
@@ -1267,14 +1266,71 @@ public partial class MainWindow : Window
         CopyToast.BeginAnimation(OpacityProperty, fadeIn);
     }
 
+    private bool HintChromeVisible =>
+        (CopyToast?.Visibility == Visibility.Visible) ||
+        (UndoContinueButton?.Visibility == Visibility.Visible);
+
+    private void OnHintBandSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (HintChrome is not null)
+        {
+            HintChrome.Width = Math.Max(0, e.NewSize.Width);
+        }
+    }
+
+    private void YieldHint(bool cover)
+    {
+        if (HintCopy is null)
+        {
+            return;
+        }
+
+        var to = cover ? 0.0 : 1.0;
+        HintCopy.BeginAnimation(OpacityProperty, new DoubleAnimation(HintCopy.Opacity, to, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new CubicEase { EasingMode = cover ? EasingMode.EaseIn : EasingMode.EaseOut }
+        });
+    }
+
+    private void ShowUndoButton()
+    {
+        if (UndoContinueButton is null)
+        {
+            return;
+        }
+
+        UndoContinueButton.BeginAnimation(OpacityProperty, null);
+        UndoContinueButton.Visibility = Visibility.Visible;
+        UndoContinueButton.Opacity = 0;
+        YieldHint(true);
+        UndoContinueButton.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        });
+    }
+
     private void ClearContinueUndo()
     {
         _hasContinueUndo = false;
         _undoContinueText = null;
-        if (UndoContinueButton is not null)
+        if (UndoContinueButton is null || UndoContinueButton.Visibility != Visibility.Visible)
         {
-            UndoContinueButton.Visibility = Visibility.Collapsed;
+            YieldHint(HintChromeVisible);
+            return;
         }
+
+        var fade = new DoubleAnimation(UndoContinueButton.Opacity, 0, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+        };
+        fade.Completed += (_, _) =>
+        {
+            UndoContinueButton.BeginAnimation(OpacityProperty, null);
+            UndoContinueButton.Opacity = 0;
+            UndoContinueButton.Visibility = Visibility.Collapsed;
+            YieldHint(HintChromeVisible);
+        };
+        UndoContinueButton.BeginAnimation(OpacityProperty, fade);
     }
 
     private void OnUndoContinue(object sender, RoutedEventArgs e)
